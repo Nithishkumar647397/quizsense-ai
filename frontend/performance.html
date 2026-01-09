@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Performance | QuizSense AI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<div class="navbar">
+    <div class="nav-left">
+        <div class="logo small">QAI</div>
+        <strong>QuizSense AI</strong>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="performance.html" class="active">Performance</a>
+        <a href="report.html">Weekly Reports</a>
+    </div>
+
+    <div class="nav-right">
+        <span id="profileName"></span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+</div>
+
+<!-- Content -->
+<div class="dashboard">
+
+    <h2>Performance Analytics 📊</h2>
+    <p class="subtitle">Track your learning progress across all topics</p>
+
+    <!-- Summary Cards -->
+    <div class="stats">
+        <div class="stat-card">
+            <h3 id="avgAccuracy">0%</h3>
+            <p>Average Accuracy</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="strongTopicsCount">0</h3>
+            <p>Strong Topics</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="weakTopicsCount">0</h3>
+            <p>Need Practice</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="totalQuestions">0</h3>
+            <p>Questions Attempted</p>
+        </div>
+    </div>
+
+    <!-- Topic Performance -->
+    <div class="quiz-card">
+        <h3>Topic-wise Performance</h3>
+        <div id="topicData" class="topic-performance-list">
+            <div class="empty-state">
+                Loading performance data...
+            </div>
+        </div>
+    </div>
+
+    <!-- Strong Topics -->
+    <div class="performance-grid">
+        <div class="improve-card">
+            <h3>💪 Strong Topics</h3>
+            <div id="strongTopicsList" class="topics-list">
+                <p>Complete more quizzes to identify your strengths!</p>
+            </div>
+        </div>
+
+        <div class="improve-card">
+            <h3>📈 Needs Improvement</h3>
+            <div id="weakTopicsList" class="topics-list">
+                <p>Great job! No weak areas detected yet.</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="script.js"></script>
+<script>
+    // Check authentication
+    checkAuth();
+
+    // Load performance data
+    async function loadPerformance() {
+        try {
+            // Get user info
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            document.getElementById('profileName').textContent = user.name || 'User';
+
+            // Get performance data
+            const data = await api.getPerformance();
+
+            // Update summary stats
+            document.getElementById('avgAccuracy').textContent = (data.overall_accuracy || 0) + '%';
+            document.getElementById('totalQuestions').textContent = data.total_questions || 0;
+
+            // Count strong and weak topics
+            const strongTopics = data.strong_topics || [];
+            const weakTopics = data.weak_topics || [];
+
+            document.getElementById('strongTopicsCount').textContent = strongTopics.length;
+            document.getElementById('weakTopicsCount').textContent = weakTopics.length;
+
+            // Update topic performance bars
+            const topicEl = document.getElementById('topicData');
+            if (data.topics && data.topics.length > 0) {
+                topicEl.innerHTML = data.topics.map(topic => `
+                    <div class="topic-bar-item">
+                        <div class="topic-bar-header">
+                            <span class="topic-name">${topic.topic}</span>
+                            <span class="topic-accuracy">${topic.accuracy}%</span>
+                        </div>
+                        <div class="topic-bar">
+                            <div class="topic-bar-fill ${getBarClass(topic.accuracy)}" 
+                                 style="width: ${topic.accuracy}%"></div>
+                        </div>
+                        <div class="topic-stats">
+                            ${topic.total_questions} questions | ${topic.status}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                topicEl.innerHTML = `
+                    <div class="empty-state">
+                        No performance data yet. Start taking quizzes to see your progress!
+                    </div>
+                `;
+            }
+
+            // Update strong topics list
+            const strongEl = document.getElementById('strongTopicsList');
+            if (strongTopics.length > 0) {
+                strongEl.innerHTML = strongTopics.map(topic => `
+                    <div class="topic-tag strong">✅ ${topic}</div>
+                `).join('');
+            } else {
+                strongEl.innerHTML = '<p>Complete more quizzes to identify your strengths!</p>';
+            }
+
+            // Update weak topics list
+            const weakEl = document.getElementById('weakTopicsList');
+            if (weakTopics.length > 0) {
+                weakEl.innerHTML = weakTopics.map(topic => `
+                    <div class="topic-tag weak">⚠️ ${topic}</div>
+                `).join('');
+            } else {
+                weakEl.innerHTML = '<p>Great job! No weak areas detected yet.</p>';
+            }
+
+        } catch (error) {
+            console.error('Failed to load performance:', error);
+            document.getElementById('topicData').innerHTML = `
+                <div class="empty-state">
+                    No performance data yet. Start taking quizzes to see your progress!
+                </div>
+            `;
+        }
+    }
+
+    function getBarClass(accuracy) {
+        if (accuracy >= 80) return 'excellent';
+        if (accuracy >= 60) return 'good';
+        return 'needs-work';
+    }
+
+    // Load on page ready
+    loadPerformance();
+</script>
+</body>
+</html>

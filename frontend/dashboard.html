@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard | QuizSense AI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<div class="navbar">
+    <div class="nav-left">
+        <div class="logo small">QAI</div>
+        <strong>QuizSense AI</strong>
+        <a href="dashboard.html" class="active">Dashboard</a>
+        <a href="performance.html">Performance</a>
+        <a href="report.html">Weekly Reports</a>
+    </div>
+
+    <div class="nav-right">
+        <span id="profileName"></span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+</div>
+
+<!-- Dashboard Content -->
+<div class="dashboard">
+    <h2>Welcome back, <span class="highlight" id="welcomeName">Learner</span>!</h2>
+    <p class="subtitle">Your AI-powered learning journey continues today</p>
+
+    <!-- Stats -->
+    <div class="stats">
+        <div class="stat-card">
+            <h3 id="totalQuizzes">0</h3>
+            <p>Total Quizzes</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="accuracyRate">0%</h3>
+            <p>Accuracy Rate</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="currentStreak">0 days</h3>
+            <p>Current Streak</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="quizzesThisWeek">0</h3>
+            <p>This Week</p>
+        </div>
+    </div>
+
+    <!-- Main Section -->
+    <div class="main-section">
+        <div class="quiz-card">
+            <h3>Ready for Today's Quiz? 📝</h3>
+            <p>Our AI has analyzed your performance and prepared a personalized quiz for you</p>
+            <button onclick="window.location.href='quiz.html'">Generate Today's Quiz</button>
+        </div>
+
+        <div class="improve-card">
+            <h3>Areas to Improve 🎯</h3>
+            <div id="weakTopicsList">
+                <p>Great job! No weak areas detected yet.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Quizzes -->
+    <div class="recent-section">
+        <h3>Recent Quizzes 📋</h3>
+        <div id="recentQuizzes" class="recent-list">
+            <p class="empty-state">No quizzes taken yet. Start your first quiz!</p>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+<script>
+    // Check authentication
+    checkAuth();
+
+    // Load dashboard data
+    async function loadDashboard() {
+        try {
+            // Get user info
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            document.getElementById('welcomeName').textContent = user.name || 'Learner';
+            document.getElementById('profileName').textContent = user.name || 'User';
+
+            // Get dashboard data from API
+            const data = await api.getDashboard();
+
+            // Update stats
+            document.getElementById('totalQuizzes').textContent = data.total_quizzes || 0;
+            document.getElementById('accuracyRate').textContent = (data.overall_accuracy || 0) + '%';
+            document.getElementById('currentStreak').textContent = (data.current_streak || 0) + ' days';
+            document.getElementById('quizzesThisWeek').textContent = data.quizzes_this_week || 0;
+
+            // Update weak topics
+            const weakEl = document.getElementById('weakTopicsList');
+            if (data.recommended_topics && data.recommended_topics.length > 0) {
+                weakEl.innerHTML = data.recommended_topics.map(topic => `
+                    <div class="weak-topic-item">
+                        <span class="topic-icon">⚠️</span>
+                        <span>${topic}</span>
+                    </div>
+                `).join('');
+            } else {
+                weakEl.innerHTML = '<p>Great job! No weak areas detected yet.</p>';
+            }
+
+            // Update recent quizzes
+            const recentEl = document.getElementById('recentQuizzes');
+            if (data.recent_quizzes && data.recent_quizzes.length > 0) {
+                recentEl.innerHTML = data.recent_quizzes.map(quiz => `
+                    <div class="recent-quiz-item">
+                        <div class="quiz-info">
+                            <span class="quiz-topic">${quiz.topic}</span>
+                            <span class="quiz-difficulty ${quiz.difficulty}">${quiz.difficulty}</span>
+                        </div>
+                        <div class="quiz-score ${quiz.percentage >= 70 ? 'good' : 'needs-work'}">
+                            ${quiz.percentage}%
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                recentEl.innerHTML = '<p class="empty-state">No quizzes taken yet. Start your first quiz!</p>';
+            }
+
+        } catch (error) {
+            console.error('Failed to load dashboard:', error);
+        }
+    }
+
+    // Load on page ready
+    loadDashboard();
+</script>
+</body>
+</html>

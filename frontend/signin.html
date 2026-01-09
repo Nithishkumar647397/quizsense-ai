@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>QuizSense AI - Sign In</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <div class="logo">QAI</div>
+        <h2>QuizSense AI</h2>
+        <p class="subtitle">AI-Powered Adaptive Learning</p>
+
+        <form id="signin-form">
+            <label>Email Address</label>
+            <input type="email" id="login-email" placeholder="you@example.com" required>
+
+            <label>Password</label>
+            <input type="password" id="login-password" placeholder="********" required>
+
+            <div id="auth-message" class="error-message hidden"></div>
+
+            <button type="submit">Sign In</button>
+        </form>
+
+        <p class="link-text">
+            Don’t have an account?
+            <a href="signup.html">Sign Up</a>
+        </p>
+    </div>
+</div>
+
+<script src="script.js"></script>
+<script>
+    // If already logged in, go directly to dashboard
+    if (localStorage.getItem('token')) {
+        window.location.href = 'dashboard.html';
+    }
+
+    const signinForm = document.getElementById('signin-form');
+    const msgEl = document.getElementById('auth-message');
+
+    signinForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const email = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value.trim();
+
+        msgEl.classList.add('hidden');
+
+        try {
+            const data = await api.login(email, password);
+            // login success → go to dashboard
+            window.location.href = 'dashboard.html';
+        } catch (error) {
+            msgEl.textContent = error.message || 'Login failed';
+            msgEl.classList.remove('hidden');
+        }
+    });
+</script>
+</body>
+</html>

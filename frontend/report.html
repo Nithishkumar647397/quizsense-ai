@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Weekly Report | QuizSense AI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<div class="navbar">
+    <div class="nav-left">
+        <div class="logo small">QAI</div>
+        <strong>QuizSense AI</strong>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="performance.html">Performance</a>
+        <a href="report.html" class="active">Weekly Reports</a>
+    </div>
+
+    <div class="nav-right">
+        <span id="profileName"></span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+</div>
+
+<!-- Report Content -->
+<div class="dashboard">
+
+    <!-- Loading State -->
+    <div id="report-loading">
+        <div class="loading-card">
+            <div class="spinner"></div>
+            <h3>Generating your weekly report...</h3>
+            <p>Our AI is analyzing your learning patterns</p>
+        </div>
+    </div>
+
+    <!-- No Data State -->
+    <div id="no-data" class="hidden">
+        <div class="quiz-card" style="text-align: center; padding: 60px;">
+            <h2>📊 No Data Yet</h2>
+            <p class="subtitle">Take some quizzes this week to generate your personalized report!</p>
+            <button onclick="window.location.href='quiz.html'" style="margin-top: 20px;">Start a Quiz</button>
+        </div>
+    </div>
+
+    <!-- Report Content -->
+    <div id="report-content" class="hidden">
+        
+        <!-- Header -->
+        <div class="report-header-card">
+            <div class="report-header-left">
+                <h2>📊 Weekly Learning Report</h2>
+                <p id="report-date">Week of January 8 - 14, 2024</p>
+            </div>
+            <div class="report-header-right">
+                <div class="report-score">
+                    <span id="report-accuracy">0%</span>
+                    <p>Overall Accuracy</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="quiz-card">
+            <h3>📝 Summary</h3>
+            <p id="report-summary" class="summary-text">Loading...</p>
+            <div class="summary-stat">
+                <strong id="quizzes-count">0</strong> quizzes completed this week
+            </div>
+        </div>
+
+        <!-- Strengths & Weaknesses -->
+        <div class="report-grid">
+            <div class="improve-card">
+                <h3>💪 Strengths</h3>
+                <div id="strong-topics"></div>
+            </div>
+            <div class="improve-card">
+                <h3>📈 Areas to Improve</h3>
+                <div id="weak-topics"></div>
+            </div>
+        </div>
+
+        <!-- Patterns -->
+        <div class="quiz-card">
+            <h3>🔍 Patterns Observed</h3>
+            <div id="patterns"></div>
+        </div>
+
+        <!-- Focus -->
+        <div class="quiz-card">
+            <h3>🎯 Focus for Next Week</h3>
+            <div id="focus-topics"></div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="quiz-card">
+            <h3>💡 Study Recommendations</h3>
+            <ul id="recommendations"></ul>
+        </div>
+
+        <!-- Full Report -->
+        <div class="quiz-card">
+            <h3>📄 Full Report</h3>
+            <div id="full-report" class="full-report-box"></div>
+        </div>
+
+        <!-- Actions -->
+        <div class="report-actions">
+            <button onclick="window.location.href='quiz.html'" class="primary-btn">Start Practicing</button>
+            <button onclick="window.location.href='dashboard.html'">Back to Dashboard</button>
+        </div>
+    </div>
+
+</div>
+
+<script src="script.js"></script>
+<script>
+    // Check authentication
+    checkAuth();
+
+    // Set profile name
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    document.getElementById('profileName').textContent = user.name || 'User';
+
+    // Load report
+    async function loadReport() {
+        try {
+            const report = await api.getWeeklyReport();
+            displayReport(report);
+        } catch (error) {
+            console.error('Failed to load report:', error);
+            document.getElementById('report-loading').classList.add('hidden');
+            document.getElementById('no-data').classList.remove('hidden');
+        }
+    }
+
+    function displayReport(report) {
+        document.getElementById('report-loading').classList.add('hidden');
+        document.getElementById('report-content').classList.remove('hidden');
+
+        // Header
+        document.getElementById('report-date').textContent = 
+            `Week of ${report.week_start} to ${report.week_end}`;
+        document.getElementById('report-accuracy').textContent = report.overall_accuracy + '%';
+
+        // Summary
+        document.getElementById('report-summary').textContent = report.summary;
+        document.getElementById('quizzes-count').textContent = report.quizzes_completed;
+
+        // Strong topics
+        const strongEl = document.getElementById('strong-topics');
+        if (report.strong_topics && report.strong_topics.length > 0) {
+            strongEl.innerHTML = report.strong_topics.map(t => 
+                `<div class="topic-tag strong">✅ ${t}</div>`
+            ).join('');
+        } else {
+            strongEl.innerHTML = '<p>Keep practicing to build strengths!</p>';
+        }
+
+        // Weak topics
+        const weakEl = document.getElementById('weak-topics');
+        if (report.weak_topics && report.weak_topics.length > 0) {
+            weakEl.innerHTML = report.weak_topics.map(t => 
+                `<div class="topic-tag weak">⚠️ ${t}</div>`
+            ).join('');
+        } else {
+            weakEl.innerHTML = '<p>Great job! No weak areas detected.</p>';
+        }
+
+        // Patterns
+        const patternsEl = document.getElementById('patterns');
+        if (report.patterns && report.patterns.length > 0) {
+            patternsEl.innerHTML = report.patterns.map(p => `
+                <div class="pattern-item">
+                    <strong>${p.type}:</strong> ${p.description}<br>
+                    <small>💡 ${p.recommendation}</small>
+                </div>
+            `).join('');
+        } else {
+            patternsEl.innerHTML = '<p>Take more quizzes to detect patterns.</p>';
+        }
+
+        // Focus topics
+        const focusEl = document.getElementById('focus-topics');
+        if (report.focus_topics && report.focus_topics.length > 0) {
+            focusEl.innerHTML = report.focus_topics.map((t, i) => 
+                `<div class="focus-item"><span class="focus-num">${i+1}</span> ${t}</div>`
+            ).join('');
+        } else {
+            focusEl.innerHTML = '<p>Keep up the great work!</p>';
+        }
+
+        // Recommendations
+        const recsEl = document.getElementById('recommendations');
+        if (report.study_recommendations && report.study_recommendations.length > 0) {
+            recsEl.innerHTML = report.study_recommendations.map(r => `<li>${r}</li>`).join('');
+        } else {
+            recsEl.innerHTML = '<li>Practice daily for best results!</li>';
+        }
+
+        // Full report
+        const fullEl = document.getElementById('full-report');
+        fullEl.innerHTML = `<pre>${report.full_report || 'No detailed report available.'}</pre>`;
+    }
+
+    // Load on page ready
+    loadReport();
+</script>
+</body>
+</html>

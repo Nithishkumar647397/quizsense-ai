@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Quiz | QuizSense AI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<div class="navbar">
+    <div class="nav-left">
+        <div class="logo small">QAI</div>
+        <strong>QuizSense AI</strong>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="performance.html">Performance</a>
+        <a href="report.html">Weekly Reports</a>
+    </div>
+
+    <div class="nav-right">
+        <span id="profileName"></span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+</div>
+
+<!-- Content -->
+<div class="dashboard">
+
+    <!-- Setup Section -->
+    <div id="quiz-setup" class="quiz-card">
+        <h2>Start Today’s AI Quiz 🧠</h2>
+        <p class="subtitle">
+            Choose your learning path. The AI Agent will decide the best topic and difficulty for you.
+        </p>
+
+        <form id="quiz-setup-form">
+            <label for="domain">Choose your domain</label>
+            <select id="domain" required>
+                <option value="Python Programming">Python Programming</option>
+                <option value="Web Development">Web Development</option>
+                <option value="Data Structures">Data Structures</option>
+                <option value="Algorithms">Algorithms</option>
+            </select>
+
+            <label for="num-questions">Number of questions</label>
+            <select id="num-questions">
+                <option value="5" selected>5 Questions</option>
+                <option value="10">10 Questions</option>
+                <option value="15">15 Questions</option>
+            </select>
+
+            <button type="submit">Generate AI Quiz 🚀</button>
+        </form>
+    </div>
+
+    <!-- Loading State -->
+    <div id="quiz-loading" class="quiz-card" style="display:none; text-align:center;">
+        <div class="spinner"></div>
+        <h3>AI Agent is preparing your quiz...</h3>
+        <p>Please wait a moment.</p>
+    </div>
+
+    <!-- Quiz Questions -->
+    <div id="quiz-questions" style="display:none;">
+        <div class="quiz-progress-bar">
+            <div class="progress-info">
+                <span>Question <span id="current-q">1</span> of <span id="total-q">5</span></span>
+                <span class="timer">⏱️ <span id="timer">00:00</span></span>
+            </div>
+            <div class="progress-track">
+                <div id="progress-fill" class="progress-fill"></div>
+            </div>
+        </div>
+
+        <div class="question-card">
+            <div class="question-meta">
+                <span id="q-domain" class="q-topic">Domain</span>
+                <span id="q-topic" class="q-topic">Topic</span>
+                <span id="q-difficulty" class="q-difficulty">Difficulty</span>
+            </div>
+
+            <h3 id="question-text" class="question-text">Question text goes here</h3>
+
+            <div id="options-container" class="options-list">
+                <!-- Options inserted here -->
+            </div>
+
+            <div class="question-nav">
+                <button id="prev-btn" class="nav-btn" disabled>← Previous</button>
+                <button id="next-btn" class="nav-btn primary">Next →</button>
+                <button id="submit-btn" class="nav-btn success" style="display:none;">Submit Quiz ✓</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quiz Results -->
+    <div id="quiz-results" class="results-card" style="display:none;">
+        <div class="results-header">
+            <span id="results-emoji" class="results-emoji">🎉</span>
+            <h2 id="results-title">Quiz Complete!</h2>
+            <p id="results-subtitle">Here is your performance</p>
+        </div>
+
+        <div class="score-display">
+            <div class="score-circle">
+                <span id="score-percent">0%</span>
+            </div>
+            <p>Your Score</p>
+        </div>
+
+        <div class="results-stats">
+            <div class="result-stat">
+                <h4 id="correct-count">0</h4>
+                <p>Correct</p>
+            </div>
+            <div class="result-stat">
+                <h4 id="wrong-count">0</h4>
+                <p>Wrong</p>
+            </div>
+            <div class="result-stat">
+                <h4 id="time-taken">0:00</h4>
+                <p>Time</p>
+            </div>
+        </div>
+
+        <div class="breakdown-section">
+            <h3>Topic Performance</h3>
+            <div id="topic-breakdown"></div>
+        </div>
+
+        <div class="review-section">
+            <h3>Review Answers</h3>
+            <div id="answer-review"></div>
+        </div>
+
+        <div class="results-actions">
+            <button onclick="window.location.href='quiz.html'" class="nav-btn primary">Take Another Quiz</button>
+            <button onclick="window.location.href='dashboard.html'" class="nav-btn">Back to Dashboard</button>
+        </div>
+    </div>
+
+</div>
+
+<script src="script.js"></script>
+<script>
+    // ==========================
+    // FRONTEND LOGIC FOR AI QUIZ
+    // ==========================
+
+    checkAuth();
+
+    const user = getCurrentUser();
+    if (user && document.getElementById('profileName')) {
+        document.getElementById('profileName').textContent = user.name || 'User';
+    }
+
+    let quizData = null;
+    let currentIndex = 0;
+    let userAnswers = [];
+    let timerInterval = null;
+    let startTime = null;
+    let questionStartTime = null;
+
+    // Handle form submit -> call /quiz/auto
+    document.getElementById('quiz-setup-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const domain = document.getElementById('domain').value;
+        const numQuestions = parseInt(document.getElementById('num-questions').value);
+
+        // Show loading
+        document.getElementById('quiz-setup').style.display = 'none';
+        document.getElementById('quiz-loading').style.display = 'block';
+
+        try {
+            const data = await api.generateAutoQuiz(domain, numQuestions);
+            quizData = data;
+
+            startQuiz(domain);
+        } catch (error) {
+            alert('Failed to generate quiz: ' + (error.message || 'Unknown error'));
+            document.getElementById('quiz-loading').style.display = 'none';
+            document.getElementById('quiz-setup').style.display = 'block';
+        }
+    });
+
+    function startQuiz(domain) {
+        document.getElementById('quiz-loading').style.display = 'none';
+        document.getElementById('quiz-questions').style.display = 'block';
+
+        document.getElementById('total-q').textContent = quizData.questions.length;
+
+        // Initialize answers array
+        userAnswers = quizData.questions.map(q => ({
+            q_id: q.q_id,
+            selected_option: null,
+            time_taken_seconds: 0
+        }));
+
+        // Timer
+        startTime = Date.now();
+        questionStartTime = Date.now();
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(updateTimer, 1000);
+
+        // Show first question
+        showQuestion(0, domain);
+
+        // Attach nav handlers
+        document.getElementById('prev-btn').onclick = () => prevQuestion(domain);
+        document.getElementById('next-btn').onclick = () => nextQuestion(domain);
+        document.getElementById('submit-btn').onclick = submitQuiz;
+    }
+
+    function updateTimer() {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        document.getElementById('timer').textContent =
+            `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function showQuestion(index, domain) {
+        const q = quizData.questions[index];
+        currentIndex = index;
+
+        // Update progress
+        document.getElementById('current-q').textContent = index + 1;
+        document.getElementById('progress-fill').style.width =
+            ((index + 1) / quizData.questions.length * 100) + '%';
+
+        // Update meta
+        document.getElementById('q-domain').textContent = domain;
+        document.getElementById('q-topic').textContent = q.topic;
+        document.getElementById('q-difficulty').textContent = q.difficulty;
+        document.getElementById('question-text').textContent = q.question;
+
+        // Options
+        const optionsEl = document.getElementById('options-container');
+        optionsEl.innerHTML = '';
+
+        Object.entries(q.options).forEach(([key, value]) => {
+            const isSelected = userAnswers[index].selected_option === key;
+            const div = document.createElement('div');
+            div.className = 'option-item' + (isSelected ? ' selected' : '');
+            div.onclick = () => selectOption(key, div);
+
+            const keySpan = document.createElement('span');
+            keySpan.className = 'option-key';
+            keySpan.textContent = key;
+
+            const textSpan = document.createElement('span');
+            textSpan.className = 'option-text';
+            textSpan.textContent = value;
+
+            div.appendChild(keySpan);
+            div.appendChild(textSpan);
+            optionsEl.appendChild(div);
+        });
+
+        document.getElementById('prev-btn').disabled = index === 0;
+
+        if (index === quizData.questions.length - 1) {
+            document.getElementById('next-btn').style.display = 'none';
+            document.getElementById('submit-btn').style.display = 'inline-block';
+        } else {
+            document.getElementById('next-btn').style.display = 'inline-block';
+            document.getElementById('submit-btn').style.display = 'none';
+        }
+
+        questionStartTime = Date.now();
+    }
+
+    function selectOption(key, element) {
+        userAnswers[currentIndex].selected_option = key;
+        userAnswers[currentIndex].time_taken_seconds =
+            Math.floor((Date.now() - questionStartTime) / 1000);
+
+        document.querySelectorAll('.option-item').forEach(el => el.classList.remove('selected'));
+        element.classList.add('selected');
+    }
+
+    function prevQuestion(domain) {
+        if (currentIndex > 0) {
+            showQuestion(currentIndex - 1, domain);
+        }
+    }
+
+    function nextQuestion(domain) {
+        if (currentIndex < quizData.questions.length - 1) {
+            showQuestion(currentIndex + 1, domain);
+        }
+    }
+
+    async function submitQuiz() {
+        clearInterval(timerInterval);
+        const totalTime = Math.floor((Date.now() - startTime) / 1000);
+
+        try {
+            const result = await api.submitQuiz(quizData.quiz_id, userAnswers, totalTime);
+            showResults(result);
+        } catch (error) {
+            alert('Failed to submit quiz: ' + (error.message || 'Unknown error'));
+        }
+    }
+
+    function showResults(result) {
+        document.getElementById('quiz-questions').style.display = 'none';
+        document.getElementById('quiz-results').style.display = 'block';
+
+        const pct = result.percentage;
+        document.getElementById('score-percent').textContent = pct + '%';
+        document.getElementById('correct-count').textContent = result.score;
+        document.getElementById('wrong-count').textContent = result.total - result.score;
+
+        const mins = Math.floor(result.time_taken_seconds / 60);
+        const secs = result.time_taken_seconds % 60;
+        document.getElementById('time-taken').textContent =
+            `${mins}:${secs.toString().padStart(2, '0')}`;
+
+        if (pct >= 80) {
+            document.getElementById('results-emoji').textContent = '🎉';
+            document.getElementById('results-title').textContent = 'Excellent!';
+        } else if (pct >= 60) {
+            document.getElementById('results-emoji').textContent = '👍';
+            document.getElementById('results-title').textContent = 'Good Job!';
+        } else {
+            document.getElementById('results-emoji').textContent = '💪';
+            document.getElementById('results-title').textContent = 'Keep Practicing!';
+        }
+
+        const breakdownEl = document.getElementById('topic-breakdown');
+        breakdownEl.innerHTML = '';
+        Object.entries(result.topic_breakdown).forEach(([topic, data]) => {
+            const acc = Math.round((data.correct / data.total) * 100);
+            const div = document.createElement('div');
+            div.className = 'breakdown-item';
+            div.innerHTML = `
+                <span>${topic}</span>
+                <span class="${acc >= 60 ? 'good' : 'bad'}">
+                    ${data.correct}/${data.total} (${acc}%)
+                </span>
+            `;
+            breakdownEl.appendChild(div);
+        });
+
+        const reviewEl = document.getElementById('answer-review');
+        reviewEl.innerHTML = '';
+        result.results.forEach((r, i) => {
+            const div = document.createElement('div');
+            div.className = 'review-item ' + (r.is_correct ? 'correct' : 'incorrect');
+            div.innerHTML = `
+                <div class="review-icon">${r.is_correct ? '✅' : '❌'}</div>
+                <div class="review-content">
+                    <p class="review-q">${i + 1}. ${r.question}</p>
+                    <p>Your answer: <strong>${r.selected_option}</strong>
+                    ${!r.is_correct ? ` | Correct: <strong>${r.correct_option}</strong>` : ''}</p>
+                    ${r.explanation ? `<p class="review-explanation">💡 ${r.explanation}</p>` : ''}
+                </div>
+            `;
+            reviewEl.appendChild(div);
+        });
+    }
+</script>
+</body>
+</html>

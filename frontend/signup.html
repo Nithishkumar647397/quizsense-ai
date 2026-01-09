@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create Account | QuizSense AI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <div class="logo">QAI</div>
+        <h2>Create Account</h2>
+        <p class="subtitle">Join QuizSense AI Today</p>
+
+        <form id="signup-form">
+            <label>Full Name</label>
+            <input type="text" id="name" placeholder="Enter your name" required>
+
+            <label>Email Address</label>
+            <input type="email" id="email" placeholder="you@example.com" required>
+
+            <label>Password</label>
+            <input type="password" id="password" placeholder="Minimum 6 characters" required minlength="6">
+
+            <div id="signup-message" class="error-message hidden"></div>
+
+            <button type="submit">Create Account</button>
+        </form>
+
+        <p class="link-text">
+            Already have an account?
+            <a href="signin.html">Sign In</a>
+        </p>
+    </div>
+</div>
+
+<script src="script.js"></script>
+<script>
+    // If already logged in, go directly to dashboard
+    if (localStorage.getItem('token')) {
+        window.location.href = 'dashboard.html';
+    }
+
+    const signupForm = document.getElementById('signup-form');
+    const signupMsgEl = document.getElementById('signup-message');
+
+    signupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const name = document.getElementById('name').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
+
+        signupMsgEl.classList.add('hidden');
+
+        if (password.length < 6) {
+            signupMsgEl.textContent = 'Password must be at least 6 characters';
+            signupMsgEl.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            const data = await api.register(name, email, password);
+            // signup success → go to dashboard
+            window.location.href = 'dashboard.html';
+        } catch (error) {
+            signupMsgEl.textContent = error.message || 'Registration failed';
+            signupMsgEl.classList.remove('hidden');
+        }
+    });
+</script>
+</body>
+</html>
